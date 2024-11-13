@@ -1,6 +1,9 @@
 
  const usermodel = require("../models/usermodel")
  const bcrypt = require("bcryptjs")
+ const jwt = require("jsonwebtoken")
+ const {Verifytoken} = require("../session/sessionservice")
+ const cloudinary = require("../middleware/cloudinary") 
  
 const userSignup = async(req, res) =>{
   try {
@@ -42,9 +45,9 @@ const userLogin = async (req , res) =>{
        if (!correctpassword) {
         res.status(405).send({message:"Incorrect password", status:false})
        }else{
-        res.status(200).send({message:"Login successful", status:true})
+        const token =  await jwt.sign({email}, "SecretKey", {expiresIn:'1d'})
+        res.status(200).send({message:"Login successful", status:true, token})
        }
-      
     }
 
    } catch (error) {
@@ -53,6 +56,55 @@ const userLogin = async (req , res) =>{
 }
 
 
+const VerifyToken = async(req, res, next) =>{
+  try {
+    const token  = req.headers.authorization.split(" ")[1]
+     if (!token) {
+      res.status(401).send({message:"token is required ", status:false})
+     }else{
+        const email = await Verifytoken(token)
+         console.log(email);
+         
+      if (email) {
+        res.status(200).send({message:"token verification successful", status:true})
+      }
+     }
+  } catch (error) {
+    console.log(error.name);
+    
+   next(error)
+  }
+}
 
 
-module.exports = {userSignup, userLogin}
+const UploadProfile =async (req, res, next) =>{
+try {
+  const {image } = req.body
+  const token = req.headers.authorization.split(" ")[1]
+  const email = await Verifytoken(token)
+  console.log(email);
+  if (!email) {
+    res.status(402).send({message:"token verification failed", status:false})
+  }
+   const imageupload = await cloudinary.uploader.upload(image)
+
+   const profileupdate =   await usermodel.findOneAndUpdate(
+      {email},
+      {$set:{Profileimage:imageupload.secure_url}},
+      {new:true}
+    )
+   if (profileupdate) {
+    res.status(200).send({message:"Profile Uploaded", status:true})
+   }else{
+    res.status(405).send({message:"unable to upload profile", status:false})
+   }
+ 
+  
+} catch (error) {
+  next(error)
+}
+}
+
+
+
+module.exports = {userSignup, userLogin, VerifyToken, UploadProfile}
