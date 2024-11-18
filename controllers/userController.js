@@ -4,6 +4,7 @@
  const jwt = require("jsonwebtoken")
  const {Verifytoken} = require("../session/sessionservice")
  const cloudinary = require("../middleware/cloudinary") 
+ const {sendmail } = require("../middleware/mailer")
  
 const userSignup = async(req, res) =>{
   try {
@@ -20,6 +21,7 @@ const userSignup = async(req, res) =>{
       password:hashpassword
      })
      if (saveduser) {
+        await  sendmail(firstname, email)
         res.status(200).send({message:"Signup successful", status:true})   
      }
     }
