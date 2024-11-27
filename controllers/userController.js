@@ -11,7 +11,7 @@ const userSignup = async(req, res) =>{
     console.log(req.body);
     const {firstname, lastname, email, password} = req.body
     if (!firstname || !lastname || !email || !password) {
-       res.status(400).send({message:"All fields are mandatory", status:false}) 
+     return  res.status(400).send({message:"All fields are mandatory", status:false}) 
     }else{
      const hashpassword = await bcrypt.hash(password, 10)
      const saveduser = await usermodel.create({
@@ -22,14 +22,16 @@ const userSignup = async(req, res) =>{
      })
      if (saveduser) {
         await  sendmail(firstname, email)
-        res.status(200).send({message:"Signup successful", status:true})   
+       return res.status(200).send({message:"Signup successful", status:true})   
      }
     }
   } catch (error) {
+    console.log(error);
+    
     if (error.message.includes("E11000 duplicate key error collection")) {
-        res.status(407).send({message:"Already a registered user", status:false}) 
+      return  res.status(407).send({message:"Already a registered user", status:false}) 
     }
-    res.status(500).send({message:error.message, status:false}) 
+   return res.status(500).send({message:error.message, status:false}) 
   }
 }
 
@@ -48,7 +50,7 @@ const userLogin = async (req , res) =>{
         res.status(405).send({message:"Incorrect password", status:false})
        }else{
         const token =  await jwt.sign({email}, "SecretKey", {expiresIn:'1d'})
-        res.status(200).send({message:"Login successful", status:true, token})
+        res.status(200).send({message:"Login successful", status:true, token,existuser})
        }
     }
 
@@ -65,7 +67,7 @@ const VerifyToken = async(req, res, next) =>{
       res.status(401).send({message:"token is required ", status:false})
      }else{
         const email = await Verifytoken(token)
-         console.log(email);
+        
          
       if (email) {
         res.status(200).send({message:"token verification successful", status:true})
@@ -79,12 +81,15 @@ const VerifyToken = async(req, res, next) =>{
 }
 
 
-const UploadProfile =async (req, res, next) =>{
+const UploadProfile = async (req, res, next) =>{
 try {
   const {image } = req.body
+  console.log(image);
+  console.log(req.headers.authorization);
+  
   const token = req.headers.authorization.split(" ")[1]
   const email = await Verifytoken(token)
-  console.log(email);
+  console.log(email,"user");
   if (!email) {
     res.status(402).send({message:"token verification failed", status:false})
   }
@@ -95,14 +100,16 @@ try {
       {$set:{Profileimage:imageupload.secure_url}},
       {new:true}
     )
+    console.log(profileupdate);
+    
    if (profileupdate) {
     res.status(200).send({message:"Profile Uploaded", status:true})
    }else{
     res.status(405).send({message:"unable to upload profile", status:false})
    }
- 
-  
 } catch (error) {
+  console.log(error);
+  
   next(error)
 }
 }
